@@ -1,6 +1,4 @@
 ###
-### publish or update articles on yuque.com
-###
 ### must-have file: .yuque_api_key
 ### only one line in this file:
 ### <app_id>=<personal access token>
@@ -19,6 +17,25 @@ class MarkdownDoc(object):
     self.slug = ""
     self.content = "" 
     self.tags = []
+
+
+class YuqueParams(object):
+  api_key = None
+  app_id = None
+  knowledge_base = "winterloo/db"
+  # direcory "tutorial"
+  knowledge_base_dir = "CLrxKxEBeFFrLxBW"
+  api_service = "https://www.yuque.com/api/v2"
+  
+  def __init__(self):
+    pass
+
+  @staticmethod
+  def load_api_key():
+    with open(".yuque_api_key") as f:
+      app_id, api_key = f.readline().strip().split("=")
+      YuqueParams.app_id = app_id
+      YuqueParams.api_key = api_key
 
 
 def with_open(filename):
@@ -63,19 +80,44 @@ def with_open(filename):
     doc.content += "\n"
   return doc
 
-def yuque_create_or_update_doc(doc):
-  global APP_ID
-  global API_KEY
+def yuque_move_to_catalog(catalog_id, doc_ids):
+  service = YuqueParams.api_service
+  namespace = YuqueParams.knowledge_base
+  op_url = f"{service}/repos/{namespace}/toc"
 
-  api_service = "https://www.yuque.com/api/v2"
-  op_url = f"{api_service}/repos/winterloo/db/docs"
+  headers = {
+    "Content-Type": "application/json",
+    "User-Agent": YuqueParams.app_id,
+    "X-Auth-Token": YuqueParams.api_key
+  }
+
+  payload = {
+    "action": "prependByDocs",
+    "doc_ids":  doc_ids,
+    "target_uuid": catalog_id
+  }
+
+  r_response = requests.put(op_url, json=payload, headers=headers)
+  if r_response.status_code != 200:
+    print(op_url)
+    print(r_response.content.decode())
+    return
+
+  jresp = json.loads(r_response.content.decode())
+  num_docs = len(jresp["data"])
+  print(f"iiii---- {num_docs} docs in the directory ----iiii\n")
+
+def yuque_create_or_update_doc(doc):
+  api_service = YuqueParams.api_service
+  namespace = YuqueParams.knowledge_base
+  op_url = f"{api_service}/repos/{namespace}/docs"
   if doc.id:
     op_url += f"/{doc.id}"
 
   headers = {
     "Content-Type": "application/json",
-    "User-Agent": APP_ID,
-    "X-Auth-Token": API_KEY
+    "User-Agent": YuqueParams.app_id,
+    "X-Auth-Token": YuqueParams.api_key
   }
 
   payload = {
@@ -91,6 +133,7 @@ def yuque_create_or_update_doc(doc):
     r_response = requests.post(op_url, json=payload, headers=headers)
 
   if r_response.status_code != 200:
+    print(op_url)
     print(r_response.content.decode())
     return
 
@@ -118,7 +161,7 @@ def load_doc_id_cache():
         if line.startswith("#"):
           continue
         slug, doc_id = line.strip().split(":")
-        MarkdownDoc.slug_id_cache[slug.strip()] = doc_id.strip()
+        MarkdownDoc.slug_id_cache[slug.strip()] = int(doc_id.strip())
   except FileNotFoundError:
     pass
 
@@ -132,20 +175,17 @@ def try_set_doc_id(doc):
   if doc_id:
     doc.id = doc_id
 
-def load_api_key():
-  with open(".yuque_api_key") as f:
-    app_id, api_key = f.readline().strip().split("=")
-    return (app_id, api_key)
-
-APP_ID = None
-API_KEY = None
-
 def main():
-  global APP_ID
-  global API_KEY
+  parser = argparse.ArgumentParser(description='maintain docs in yuque.com')
 
+  # Add the arguments
+  parser.add_argument("--move", "-m", action="store_true", help="move to catalog \"tutorial\"")
+  
+  # Parse the arguments
+  args = parser.parse_args()
+  
   load_doc_id_cache()
-  APP_ID, API_KEY = load_api_key()
+  YuqueParams.load_api_key()
 
   # list files in current directory
   filenames = os.listdir()
@@ -154,9 +194,12 @@ def main():
       continue
     doc = with_open(filename)
     try_set_doc_id(doc)
+    is_new_doc = (doc.id == None)
     print(f"doc \"{filename}\"")
     yuque_create_or_update_doc(doc)
-
+    if is_new_doc or args.move:
+      yuque_move_to_catalog(YuqueParams.knowledge_base_dir, [doc.id])
+    
   save_doc_id_cache()
   
   
