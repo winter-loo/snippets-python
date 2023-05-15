@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ###
 ### must-have file: .yuque_api_key
 ### only one line in this file:
@@ -32,7 +33,9 @@ class YuqueParams(object):
 
   @staticmethod
   def load_api_key():
-    with open(".yuque_api_key") as f:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    api_key_file = os.path.join(script_dir, ".yuque_api_key")
+    with open(api_key_file) as f:
       app_id, api_key = f.readline().strip().split("=")
       YuqueParams.app_id = app_id
       YuqueParams.api_key = api_key
@@ -44,7 +47,10 @@ def with_open(filename):
   doc.title = filename[:-3]
   doc.slug = doc.title.replace(" ", "-")
 
-  with open(filename) as f:
+  print(f"....{filename}...")
+
+  script_dir = os.path.dirname(os.path.abspath(__file__))
+  with open(os.path.join(script_dir, filename)) as f:
     """ 需要忽略 FRONT MATTER """
     front_matter_start = False
     front_matter_end = False
@@ -99,6 +105,7 @@ def yuque_move_to_catalog(catalog_id, doc_ids):
 
   r_response = requests.put(op_url, json=payload, headers=headers)
   if r_response.status_code != 200:
+    print(json.dumps(payload))
     print(op_url)
     print(r_response.content.decode())
     return
@@ -153,10 +160,12 @@ book_id: {doc_book_id}
 
   if not doc.id:
     MarkdownDoc.slug_id_cache[doc_slug] = doc_id
+    doc.id = doc_id
 
 def load_doc_id_cache():
   try:
-    with open(".yuque_doc") as f:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(script_dir, ".yuque_doc")) as f:
       for line in f:
         if line.startswith("#"):
           continue
@@ -166,7 +175,8 @@ def load_doc_id_cache():
     pass
 
 def save_doc_id_cache():
-  with open(".yuque_doc", "w") as f:
+  script_dir = os.path.dirname(os.path.abspath(__file__))
+  with open(os.path.join(script_dir, ".yuque_doc"), "w") as f:
     for slug, doc_id in MarkdownDoc.slug_id_cache.items():
       f.write(f"{slug}: {doc_id}\n")
 
@@ -188,7 +198,8 @@ def main():
   YuqueParams.load_api_key()
 
   # list files in current directory
-  filenames = os.listdir()
+  script_dir = os.path.dirname(os.path.abspath(__file__))
+  filenames = os.listdir(script_dir)
   for filename in filenames:
     if not filename.endswith(".md"):
       continue
