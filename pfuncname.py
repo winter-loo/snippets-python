@@ -2,9 +2,10 @@
 # select only function name from gdb stack output
 #
 # how to generate `gdb.txt`:
-#   (gdb) set logging on
+#   (gdb) set filename-display absolute
+#   (gdb) set logging enabled on
 #   (gdb) bt
-#   (gdb) set logging off
+#   (gdb) set logging enabled off
 #
 import os
 import argparse
@@ -23,7 +24,12 @@ def filter_gdb_frame(frame):
   idx = frame.find('at ')
   if idx != -1:
     filename, lino = frame[idx + 3:].split(':')
-    filename = filename.split(os.sep)[-1]
+    if None != Args.args.path_prefix_to_remove:
+      if filename.startswith(Args.args.path_prefix_to_remove):
+        startpos = len(Args.args.path_prefix_to_remove)
+        if not Args.args.path_prefix_to_remove.endswith('/'):
+          startpos += 1
+        filename = filename[startpos:]
 
   if Args.args.with_loc == True:
     print(f"{funcname} {filename}:{lino}")
@@ -32,7 +38,7 @@ def filter_gdb_frame(frame):
 
 
 def main():
-  with open('gdb.txt') as f:
+  with open(Args.args.gdb_logging_file) as f:
       in_stack = False
   
       while True:
@@ -62,6 +68,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='print gdb stack frames')
 
   parser.add_argument('--with-loc', '-l', action='store_true', help='print with location')
+  parser.add_argument('--gdb-logging-file', '-f', default='gdb.txt', help='gdb logging file')
+  parser.add_argument('--path-prefix-to-remove', '-p', help='remove directory prefix from filename')
 
   Args.args = parser.parse_args()
 
