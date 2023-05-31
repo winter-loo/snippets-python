@@ -32,7 +32,7 @@ def filter_gdb_frame(frame):
                     startpos += 1
                 filename = filename[startpos:]
 
-    if Args.args.with_loc:
+    if Args.args.loc:
         print(f"{funcname} {filename}:{lino}")
     else:
         print(f"{funcname}")
@@ -41,6 +41,7 @@ def filter_gdb_frame(frame):
 def main():
     with open(Args.args.gdb_logging_file) as f:
         in_stack = False
+        frame_idx = 0
 
         while True:
             buf = f.read()
@@ -51,12 +52,23 @@ def main():
 
             while r < len(buf):
                 if buf[r] == '#' and r + 1 < len(buf) and buf[r + 1] == '0':
+                    # may be switching to new stack frames
+                    if left != r:
+                        frame = buf[left:r - 1]
+                        if Args.args.lino:
+                            print(f"{frame_idx}", end=" ")
+                            frame_idx = 0
+                        filter_gdb_frame(frame)
+                        print("----STACK FRAME DONE----")
                     left = r
                     in_stack = True
                 elif in_stack and r > 0 and buf[r - 1] == '\n' and (
                         buf[r] != '#' and buf[r] != ' '):
                     in_stack = False
                     frame = buf[left:r - 1]
+                    if Args.args.lino:
+                        print(f"{frame_idx}", end=" ")
+                        frame_idx = 0
                     filter_gdb_frame(frame)
                     print("----STACK FRAME DONE----")
 
@@ -64,6 +76,9 @@ def main():
                                  and buf[r] == '#'):
                     frame = buf[left:r - 1]
                     left = r
+                    if Args.args.lino:
+                        print(f"{frame_idx}", end=" ")
+                        frame_idx += 1
                     filter_gdb_frame(frame)
                 r += 1
 
@@ -71,10 +86,14 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='print gdb stack frames')
 
-    parser.add_argument('--with-loc',
+    parser.add_argument('--loc',
                         '-l',
                         action='store_true',
                         help='print with location')
+    parser.add_argument('--lino',
+                        '-n',
+                        action='store_true',
+                        help='print with line number')
     parser.add_argument('--gdb-logging-file',
                         '-f',
                         default='gdb.txt',

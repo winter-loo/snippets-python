@@ -6,7 +6,7 @@ relations = dict()
 
 prev_func = None
 curr_func = None
-with open('funcs.txt') as f:
+with open('stacks.txt') as f:
     for line in f:
         if line.startswith('---'):
             prev_func = None
@@ -20,8 +20,8 @@ with open('funcs.txt') as f:
 
         prev_func = curr_func
 
-for n in relations.keys():
-    dot.node(n)
+# for n in relations.keys():
+#     dot.node(n)
 
 for n, nns in relations.items():
     if len(nns) == 0:
