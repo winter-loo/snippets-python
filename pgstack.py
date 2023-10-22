@@ -3,9 +3,9 @@
 #
 # how to generate `gdb.txt`:
 #   (gdb) set filename-display absolute
-#   (gdb) set logging enabled on
+#   (gdb) set logging on
 #   (gdb) bt
-#   (gdb) set logging enabled off
+#   (gdb) set logging off
 #
 import argparse
 
